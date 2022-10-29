@@ -1,0 +1,129 @@
+<% layout("layout") -%>
+<!-- css -->
+<div class="layout">
+  <% for (let cpt of compensation) { %>
+  <h3>ALL Compensation <%= cpt.id %> amount : <%= cpt.amount %></h3>
+  <h5>(Employee count:<%= cpt.count %>)</h5>
+  <% } %>
+</div>
+
+<div class="container">
+  <form id="employee-form">
+    <label for="employee-eid">Employee ID</label>
+    <input
+      type="text"
+      pattern="[0-9]{5}"
+      id="employee-eid"
+      class="input"
+      name="eid"
+      required
+    />
+
+    <label for="employee-role">Select role</label>
+    <select id="employee-role" class="input" name="role" required>
+      <option value="Junior">Junior</option>
+      <option value="Senior">Senior</option>
+      <option value="Manager">Manager</option>
+    </select>
+
+    <label for="employee-salary">Salary</label>
+    <input
+      type="text"
+      pattern="^\s*(?=.*[1-9])\d*(?:\.\d{1,2})?\s*$"
+      id="employee-salary"
+      class="input"
+      name="salary"
+      required
+    />
+
+    <label for="employee-sd">Start-Date</label>
+    <input
+      type="date"
+      max="3000-01-01"
+      value="2022-08-30"
+      onfocus="this.max=new Date((new Date()).valueOf() - 1000*60*60*24).toISOString().split('T')[0]"
+      id="employee-sd"
+      class="input"
+      name="startDate"
+      required
+    />
+
+    <button>Submit</button>
+  </form>
+</div>
+
+<script>
+  function calCompensation(role, salary, workTime) {
+    console.log(workTime);
+    let money = (salary / 365) * workTime;
+    if (role === "Senior") {
+      money *= 3;
+    } else if (role === "Manager") {
+      money *= 5;
+      money += salary * (50 / 100);
+    }
+    return money;
+  }
+
+  const form = document.getElementById("employee-form");
+  async function onSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const formDataObj = Object.fromEntries(formData.entries());
+
+    const today = new Date();
+    const startDate = new Date(formDataObj.startDate);
+    const workTime = Math.floor((today - startDate) / (24 * 3600 * 1000));
+    let compensation = 0;
+
+    if (parseInt(workTime) > 59) {
+      compensation = calCompensation(
+        formDataObj.role,
+        formDataObj.salary,
+        workTime
+      );
+      let emp = [];
+      axios.get("/api/employee").then((res) => {
+        emp = res;
+      });
+      console.log(emp);
+      let curAmount = 0;
+      let curCount = 0;
+      axios.get("/api/compensation").then((res) => {
+        curAmount = res.data[0].amount;
+        curCount = res.data[0].count + 1;
+      });
+      const amount = curAmount + compensation;
+
+      const { employee } = await axios.post("/api/employee", formDataObj);
+      const { comp } = await axios.put("/api/compensation/1", {
+        id: 1,
+        amount: amount,
+        count: curCount,
+      });
+      alert("You has recieved " + compensation.toFixed(2) + " bath");
+    } else {
+      alert("You has not recieved compensation");
+    }
+    window.location.reload();
+  }
+  form.addEventListener("submit", onSubmit);
+</script>
+
+<style>
+  .layout {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 50px;
+  }
+  .container {
+    display: flex;
+    justify-content: center;
+    margin: 40px;
+    background-color: bisque;
+    border-radius: 15px;
+    padding: 10px;
+  }
+</style>
